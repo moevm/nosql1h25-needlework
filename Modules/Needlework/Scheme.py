@@ -24,25 +24,20 @@ class Scheme:
             if not row:
                 continue
 
-            # Обрабатываем первую ячейку строки
             current_char = row[0]
             count = 1
 
-            # Обрабатываем остальные ячейки строки
             for char in row[1:]:
                 if char == current_char:
                     count += 1
                 else:
-                    # Добавляем закодированную последовательность
                     encoded.append(f"{count}{self._escape_char(current_char)}")
                     current_char = char
                     count = 1
 
-            # Добавляем последнюю последовательность в строке
             encoded.append(f"{count}{self._escape_char(current_char)}")
             encoded.append("^")  # Разделитель строк
 
-        # Объединяем все части и удаляем последний разделитель
         return "".join(encoded[:-1])
 
     def _escape_char(self, char):
@@ -61,18 +56,15 @@ class Scheme:
 
         while i < n:
             if encoded_str[i] == "\\":
-                # Обработка экранированного символа
                 if i + 1 >= n:
                     raise ValueError("Incomplete escape sequence")
                 current_row.append(encoded_str[i + 1])
                 i += 2
             elif encoded_str[i] == "^":
-                # Конец строки
                 pattern.append(current_row)
                 current_row = []
                 i += 1
             elif encoded_str[i].isdigit():
-                # Обработка последовательности символов
                 num_str = ""
                 while i < n and encoded_str[i].isdigit():
                     num_str += encoded_str[i]
@@ -84,7 +76,6 @@ class Scheme:
                 char = encoded_str[i]
                 i += 1
 
-                # Если символ экранирован
                 if char == "\\":
                     if i >= n:
                         raise ValueError("Incomplete escape sequence")
