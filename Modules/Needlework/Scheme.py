@@ -7,7 +7,7 @@ class Scheme:
         :param pattern: list[list] - двумерный массив, представляющий схему
         """
         if scheme_type.lower() not in ['knitting', 'embroidery']:
-            raise Exception('Invalid scheme type')
+            raise ValueError('Invalid scheme type')
         self.scheme_type = scheme_type
         self.pattern = pattern
 
@@ -90,34 +90,3 @@ class Scheme:
             pattern.append(current_row)
 
         return cls(scheme_type, pattern)
-
-
-scheme1 = Scheme("knitting", [["a", "a", "b"], ["c", "d", "d"]])
-encoded1 = scheme1.encode()
-print(f"Encoded 1: {encoded1}")  #"2a1b^1c2d"
-decoded1 = Scheme.decode(encoded1, "knitting")
-print(f"Decoded 1: {decoded1.get_pattern()}")  #[['a', 'a', 'b'], ['c', 'd', 'd']]
-
-scheme2 = Scheme("embroidery", [["^", "b", "b"], ["\\", "d", "d"]])
-encoded2 = scheme2.encode()
-print(f"Encoded 2: {encoded2}")  #"1\^2b^1\\2d"
-decoded2 = Scheme.decode(encoded2, "embroidery")
-print(f"Decoded 2: {decoded2.get_pattern()}")  #[['^', 'b', 'b'], ['\\', 'd', 'd']]
-
-scheme3 = Scheme("knitting", [["1", "2", "2"], ["3", "4", "4"]])
-encoded3 = scheme3.encode()
-print(f"Encoded 3: {encoded3}")  #"1\11\22^1\32\4"
-decoded3 = Scheme.decode(encoded3, "knitting")
-print(f"Decoded 3: {decoded3.get_pattern()}")  #[['1', '2', '2'], ['3', '4', '4']]
-
-scheme4 = Scheme("knitting", [["a", "^", "b"], ["\\", "d", "d"]])
-encoded4 = scheme4.encode()
-print(f"Encoded 4: {encoded4}")  # "1a1\^1b^1\\2d"
-decoded4 = Scheme.decode(encoded4, "knitting")
-print(f"Decoded 4: {decoded4.get_pattern()}")  #[['a', '^', 'b'], ['\\', 'd', 'd']]
-
-scheme5 = Scheme("aboba", [["a", "^", "b"], ["\\", "d", "d"]])
-encoded4 = scheme5.encode()
-print(f"Encoded 5: {encoded4}")  # Exception
-decoded4 = Scheme.decode(encoded4, "aboba")
-print(f"Decoded 5: {decoded4.get_pattern()}")  # Exception
