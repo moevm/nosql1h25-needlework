@@ -8,7 +8,7 @@ on:
 jobs:
   check_tag_08_docker_compose:
     name: "Проверка наличия тега 0.8 и работоспособности docker compose"
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         name: Check out current commit
