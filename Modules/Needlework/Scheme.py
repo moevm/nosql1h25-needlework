@@ -3,10 +3,10 @@ class Scheme:
         """
         Конструктор класса Scheme.
 
-        :param scheme_type: str - тип схемы ("knitting" или "embroidery")
+        :param scheme_type: str - тип схемы ("knitting" или "sewing")
         :param pattern: list[list] - двумерный массив, представляющий схему
         """
-        if scheme_type.lower() not in ['knitting', 'embroidery']:
+        if scheme_type.lower() not in ['knitting', 'sewing']:
             raise ValueError('Invalid scheme type')
         self.scheme_type = scheme_type
         self.pattern = pattern
