@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Вышивка - Все посты</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .post { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .post-title { font-size: 1.5em; margin-bottom: 10px; }
+        .post-image { max-width: 200px; max-height: 200px; margin-bottom: 10px; }
+        .post-meta { color: #666; margin-bottom: 10px; }
+        .post-description { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Все схемы для вышивки</h1>
+
+    {% for post in posts %}
+    <div class="post">
+        <div class="post-title">
+            <a href="/post/{{ post._id }}">{{ post.scheme_name }}</a>
+        </div>
+        {% if post.preview_image_id %}
+        <div>
+            <img src="/image/{{ post.preview_image_id }}" class="post-image" alt="{{ post.scheme_name }}">
+        </div>
+        {% endif %}
+        <div class="post-meta">
+            Автор: {{ post.author.name }} {{ post.author.surname }} |
+            Дата: {{ post.created_at.strftime('%Y-%m-%d') }}
+        </div>
+        <div class="post-description">
+            {{ post.description }}
+        </div>
+    </div>
+    {% endfor %}
+</body>
+</html>

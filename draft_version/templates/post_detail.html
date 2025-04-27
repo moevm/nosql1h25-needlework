@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ post.scheme_name }} - Детали</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .post-header { margin-bottom: 20px; }
+        .post-image { max-width: 100%; margin-bottom: 20px; border: 1px solid #ddd; }
+        .post-meta { color: #666; margin-bottom: 20px; }
+        .legend { background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        .legend-item { display: inline-block; margin: 5px 10px; }
+        .scheme { font-family: monospace; white-space: pre; background: #f8f8f8; padding: 15px; }
+        .comment { border-top: 1px solid #eee; padding: 10px 0; }
+        .color-box {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="post-header">
+        <h1>{{ post.scheme_name }}</h1>
+        <div class="post-meta">
+            Автор: {{ post.author.name }} {{ post.author.surname }} |
+            Дата: {{ post.created_at.strftime('%Y-%m-%d %H:%M') }} |
+            Лайков: {{ post.likes|length }} |
+            Комментариев: {{ post.comments|length }}
+        </div>
+    </div>
+
+    {% if post.preview_image_id %}
+    <div>
+        <img src="/image/{{ post.preview_image_id }}" class="post-image" alt="{{ post.scheme_name }}">
+    </div>
+    {% endif %}
+
+    <div class="post-content">
+        <h2>Описание</h2>
+        <p>{{ post.description }}</p>
+
+        {% if post.comment %}
+        <h3>Комментарий автора</h3>
+        <p>{{ post.comment }}</p>
+        {% endif %}
+
+        <h2>Легенда цветов потом отрендерим</h2>
+        <div class="legend">
+            {% for code, color_name in post.color_legend %}
+            <div class="legend-item">
+                {% if color_name in ['красный', 'Алый', 'Red'] %}
+                <span class="color-box" style="background-color: #ff0000;"></span>
+                {% elif color_name in ['синий', 'Blue'] %}
+                <span class="color-box" style="background-color: #0000ff;"></span>
+                {% elif color_name in ['зеленый', 'Green'] %}
+                <span class="color-box" style="background-color: #0000ff;"></span>
+                {% elif color_name in ['черный', 'Green'] %}
+                <span class="color-box" style="background-color: #000000;"></span>
+                {% elif color_name in ['белый', 'Green'] %}
+                <span class="color-box" style="background-color: #ffffff;"></span>
+                {% else %}
+                <span class="color-box" style="background-color: #cccccc;"></span>
+                {% endif %}
+                {{ code }}: {{ color_name }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <h2>Схема вышивки потом отрендерим</h2>
+        <div class="scheme">
+            {% for row in post.scheme %}
+            {% for code, length in row %}{{ code }}({{ length }}) {% endfor %}
+            {% endfor %}
+        </div>
+
+        <h2>Комментарии</h2>
+        {% if post.comments %}
+            {% for comment in post.comments %}
+            <div class="comment">
+                <strong>{{ comment.author.name }}:</strong> {{ comment.text }}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>Пока нет комментариев</p>
+        {% endif %}
+    </div>
+
+    <div style="margin-top: 30px;">
+        <a href="/">← Назад к списку постов</a>
+    </div>
+</body>
+</html>
