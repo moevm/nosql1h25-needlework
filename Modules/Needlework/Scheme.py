@@ -36,7 +36,7 @@ class Scheme:
                     count = 1
 
             encoded.append(f"{count}{self._escape_char(current_char)}")
-            encoded.append("^")  # Разделитель строк
+            encoded.append("^")
 
         return "".join(encoded[:-1])
 
