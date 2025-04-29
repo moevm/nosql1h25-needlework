@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Вышивка - Все посты</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .user-panel {
+            float: right;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .user-panel a {
+            color: #007bff;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+        .user-panel a:hover {
+            text-decoration: underline;
+        }
+        .user-greeting {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .filters {
+            background: #f5f5f5;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            clear: both;
+        }
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        label {
+            min-width: 150px;
+            font-weight: bold;
+        }
+        input, select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        input[type="number"], input[type="date"] {
+            width: 120px;
+        }
+        button {
+            padding: 8px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        a.reset {
+            color: #f44336;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        .post {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: white;
+        }
+        .post-title {
+            font-size: 1.4em;
+            margin-bottom: 10px;
+        }
+        .post-title a {
+            color: #333;
+            text-decoration: none;
+        }
+        .post-title a:hover {
+            color: #0066cc;
+        }
+        .post-meta {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .post-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .colors-select {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        .color-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+        .color-preview {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .post-image {
+            max-width: 100%;
+            height: auto;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .no-posts {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-panel">
+        {% if current_user %}
+            <span class="user-greeting">👋 Привет, {{ current_user.name }} {{ current_user.surname }}!</span>
+            <a href="/logout">🚪 Выйти</a>
+            <a href="/users">👤 Поиск пользователей</a>
+            <a href="/create-post">Создать пост</a>
+            <a href="/create-action">Добавить действие</a>
+        {% else %}
+            <a href="/login">🔑 Войти</a>
+            <a href="/register">📝 Регистрация</a>
+            <a href="/users">👤 Поиск пользователей</a>
+        {% endif %}
+    </div>
+
+    <h1>Все схемы для рукоделия</h1>
+
+    <div class="filters">
+        <form method="get" id="filterForm">
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label for="type">Тип работы:</label>
+                    <select id="type" name="type">
+                        <option value="">Все типы</option>
+                        {% for t in available_types %}
+                        <option value="{{ t }}" {% if filters.type == t %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Цвета:</label>
+                </div>
+                <div class="colors-select">
+                    {% for color in available_colors %}
+                    <div class="color-option">
+                        <input type="checkbox"
+                               id="color_{{ color._id }}"
+                               name="color_ids"
+                               value="{{ color._id }}"
+                               {% if filters.color_ids and color._id|string in filters.color_ids.split(',') %}checked{% endif %}>
+                        <div class="color-preview" style="background-color: {{ color.name }};"></div>
+                        <label for="color_{{ color._id }}">{{ color.name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Длина ниток:</label>
+                    <input type="number" name="min_length" placeholder="От" value="{{ filters.min_length }}" min="0">
+                    <input type="number" name="max_length" placeholder="До" value="{{ filters.max_length }}" min="0">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Кол-во цветов:</label>
+                    <input type="number" name="min_colors" placeholder="От" value="{{ filters.min_colors }}" min="1">
+                    <input type="number" name="max_colors" placeholder="До" value="{{ filters.max_colors }}" min="1">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Дата создания:</label>
+                    <input type="date" name="date_from" value="{{ filters.date_from }}">
+                    <input type="date" name="date_to" value="{{ filters.date_to }}">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Сортировка:</label>
+                    <select name="sort_by">
+                        <option value="created_at" {% if filters.sort_by == 'created_at' %}selected{% endif %}>Дата</option>
+                        <option value="likes" {% if filters.sort_by == 'likes' %}selected{% endif %}>Лайки</option>
+                        <option value="color_count" {% if filters.sort_by == 'color_count' %}selected{% endif %}>Цвета</option>
+                        <option value="length" {% if filters.sort_by == 'length' %}selected{% endif %}>Длина</option>
+                    </select>
+                    <select name="sort_order">
+                        <option value="desc" {% if filters.sort_order == 'desc' %}selected{% endif %}>По убыванию</option>
+                        <option value="asc" {% if filters.sort_order == 'asc' %}selected{% endif %}>По возрастанию</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <button type="submit">Применить фильтры</button>
+                <a href="/" class="reset">Сбросить</a>
+            </div>
+        </form>
+    </div>
+
+    {% if posts|length == 0 %}
+    <div class="no-posts">
+        По вашему запросу ничего не найдено. Попробуйте изменить параметры фильтрации.
+    </div>
+    {% endif %}
+
+    {% for post in posts %}
+    <div class="post">
+        <div class="post-title">
+            <a href="/post/{{ post._id }}">{{ post.scheme_name }}</a>
+        </div>
+        <div class="post-meta">
+            Автор: {{ post.author.name }} {{ post.author.surname }} |
+            Дата: {{ post.created_at.strftime('%d.%m.%Y %H:%M') }} |
+            Тип: {{ post.type }}
+        </div>
+        <div class="post-stats">
+            <div>❤️ {{ post.likes|length }} лайков</div>
+            <div>🎨 {{ post.color_count }} цветов</div>
+            <div>🧵 {{ post.length }} ед. ниток</div>
+        </div>
+        <p>{{ post.description }}</p>
+        {% if post.preview_image_id %}
+        <img src="/image/{{ post.preview_image_id }}" alt="{{ post.scheme_name }}" class="post-image" style="max-width: 300px;">
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <script>
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            const colorCheckboxes = Array.from(this.querySelectorAll('input[name="color_ids"]:checked'));
+            const colorIdsInput = document.createElement('input');
+            colorIdsInput.type = 'hidden';
+            colorIdsInput.name = 'color_ids';
+            colorIdsInput.value = colorCheckboxes.map(cb => cb.value).join(',');
+            this.appendChild(colorIdsInput);
+        });
+
+        // Авто-отправка формы при изменении фильтров
+        document.querySelectorAll('#filterForm select').forEach(select => {
+            select.addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+        });
+    </script>
+</body>
+</html>
