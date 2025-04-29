@@ -34,6 +34,10 @@ pip install -r requirements.txt
 ```bash
 docker run -d --name mongodb -p 27017:27017 -v mongodb_data:/data/db mongo:latest
 ```
+2. **Инициализация коллекций и заполнение**
+
+   Для инициализации и заполнения тестовыми данными нужно последовательно запустить файлы init.py, а потом insert.py
+
 
 сайт на http://localhost:8000
 
