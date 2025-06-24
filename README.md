@@ -21,26 +21,14 @@
 
 # Запуск приложения
 
-## Требования
+Приложение запускается командой:
 
 ```
-pip install -r requirements.txt
+docker compose build –no-cache && docker compose up
 ```
 
-## Установка и запуск
+Веб интерфейс поднимается на `http://0.0.0.0:8081/`
 
-1. **Запуск MongoDB в Docker**:
-
-```bash
-docker run -d --name mongodb -p 27017:27017 -v mongodb_data:/data/db mongo:latest
-```
-2. **Инициализация коллекций и заполнение**
-
-   Для инициализации и заполнения тестовыми данными нужно последовательно запустить файлы init.py, а потом insert.py
-
-
-сайт на http://localhost:8000
-
-пример для входа
+Пример данных для входа
 login: user1
 password: pass123
