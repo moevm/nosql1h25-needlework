@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Профиль пользователя {{ profile_user.username }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .profile-header { display: flex; align-items: center; margin-bottom: 30px; }
+        .profile-info { margin-left: 20px; }
+        .profile-name { font-size: 24px; margin: 0 0 5px 0; }
+        .profile-username { color: #666; margin: 0 0 10px 0; }
+        .profile-stats { display: flex; gap: 20px; margin-top: 15px; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 18px; font-weight: bold; }
+        .stat-label { font-size: 14px; color: #666; }
+        .posts-header { border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-top: 30px; }
+        .post { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .post-title { font-size: 18px; margin: 0 0 5px 0; }
+        .post-meta { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .post-likes { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="user-panel">
+        {% if current_user %}
+            <span class="user-greeting">👋 Привет, {{ current_user.name }} {{ current_user.surname }}!</span>
+            <a href="/logout">🚪 Выйти</a>
+            <a href="/"> Главная</a>
+            <a href="/users">👤 Поиск пользователей</a>
+        {% else %}
+            <a href="/login">🔑 Войти</a>
+            <a href="/register">📝 Регистрация</a>
+            <a href="/"> Главная</a>
+            <a href="/users">👤 Поиск пользователей</a>
+        {% endif %}
+    </div>
+    <div class="profile-header">
+        <div>
+            <!-- Здесь можно добавить аватар пользователя -->
+            <div style="width: 100px; height: 100px; background-color: #ddd; border-radius: 50%;"></div>
+        </div>
+        <div class="profile-info">
+            <h1 class="profile-name">{{ profile_user.name }} {{ profile_user.surname }}</h1>
+            <p class="profile-username">@{{ profile_user.username }}</p>
+            <p>Статус: {{ profile_user.status or 'user' }}</p>
+            <p>Зарегистрирован: {{ profile_user.formatted_date }}</p>
+
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <div class="stat-value">{{ post_count }}</div>
+                    <div class="stat-label">Постов</div>
+                </div>
+                <!-- Можно добавить другие статистики -->
+            </div>
+        </div>
+    </div>
+
+    <h2 class="posts-header">Последние работы</h2>
+
+    {% if posts %}
+        {% for post in posts %}
+        <div class="post">
+            <h3 class="post-title"><a href="/post/{{ post._id }}">{{ post.scheme_name }}</a></h3>
+            <div class="post-meta">
+                {{ post.formatted_date }} |
+                {{ post.type }} |
+                {{ post.color_count }} цветов |
+                {{ post.length }} стежков
+            </div>
+            <div class="post-likes">❤️ {{ post.likes_count }} лайков</div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>Пользователь еще не добавил ни одной работы.</p>
+    {% endif %}
+</body>
+</html>

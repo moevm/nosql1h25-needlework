@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Создать новый пост</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .post-form { background: #f5f5f5; padding: 20px; border-radius: 8px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; }
+        textarea { min-height: 100px; }
+        button { padding: 10px 15px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .form-row { display: flex; gap: 15px; }
+        .form-row .form-group { flex: 1; }
+    </style>
+</head>
+<body>
+    <h1>Создать новый пост</h1>
+
+    <form method="post" enctype="multipart/form-data" class="post-form">
+        <div class="form-group">
+            <label for="preview_image">Превью изображение:</label>
+            <input type="file" id="preview_image" name="preview_image" accept="image/*" required>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="scheme_name">Название схемы:</label>
+                <input type="text" id="scheme_name" name="scheme_name" required maxlength="50">
+            </div>
+
+            <div class="form-group">
+                <label for="type">Тип:</label>
+                <select id="type" name="type" required>
+                    <option value="">Выберите тип</option>
+                    {% for type in available_types %}
+                    <option value="{{ type }}">{{ type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Описание:</label>
+            <textarea id="description" name="description" maxlength="512"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="comment">Комментарий:</label>
+            <textarea id="comment" name="comment" maxlength="512"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="scheme">Схема (в формате [[(color_id, action_id), ...], ...]):</label>
+            <textarea id="scheme" name="scheme" required></textarea>
+            <p>Пример:  [[("68100a66e551a41cc4897d50", "68100a66e551a41cc4897d55"), ("68100a66e551a41cc4897d50", "68100a66e551a41cc4897d55")]]</p>
+
+            <div style="margin-top: 15px;">
+                <h3>Доступные цвета:</h3>
+                <ul>
+                    {% for color in colors %}
+                    <li>{{ color.name }} (ID: {{ color._id }})</li>
+                    {% endfor %}
+                </ul>
+
+                <h3>Доступные действия:</h3>
+                <ul>
+                    {% for action in actions %}
+                    <li>{{ action.description }} (ID: {{ action._id }}, длина: {{ action.length }})</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <button type="submit">Создать пост</button>
+    </form>
+</body>
+</html>

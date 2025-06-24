@@ -3,19 +3,30 @@ from fastapi import FastAPI, Request, Query, HTTPException, Form, Depends
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
-from bson import ObjectId
 from io import BytesIO
-from datetime import datetime, timezone
-from typing import Optional, List
-import re
 from fastapi import File, UploadFile
 from fastapi.responses import RedirectResponse
+from math import ceil
+from datetime import datetime, timezone
+import re
+from bson import ObjectId
+from fastapi import HTTPException, Request, Query
+from fastapi.responses import HTMLResponse
+from pymongo import ASCENDING, DESCENDING
+import json
+from bson import json_util
+import tempfile
+import os
+from datetime import datetime
+from fastapi.responses import FileResponse
+from fastapi import BackgroundTasks
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="/app/templates")
 
 client = None
 db = None
 fs = None
+
 
 current_user = None
 
@@ -23,7 +34,8 @@ current_user = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global client, db, fs
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    mongodb_url = os.getenv("MONGODB_URL", "mongodb://db:27017")
+    client = AsyncIOMotorClient(mongodb_url)
     db = client.embroidery_db
     fs = AsyncIOMotorGridFSBucket(db)
     yield
@@ -107,7 +119,6 @@ async def register(
     return RedirectResponse("/login?success=1", status_code=303)
 
 
-# Основные маршруты
 @app.get("/", response_class=HTMLResponse)
 async def view_all_posts(
         request: Request,
@@ -120,65 +131,78 @@ async def view_all_posts(
         date_from: str = Query(None),
         date_to: str = Query(None),
         sort_by: str = Query("created_at"),
-        sort_order: str = Query("desc")
+        sort_order: str = Query("desc"),
+        page: str = Query("1"),
+        per_page: str = Query("5")
 ):
-    # Обработка числовых параметров
+    """Обработчик главной страницы с пагинацией и фильтрацией"""
+
+    # Обработка параметров пагинации
     try:
-        min_length_int = int(min_length) if min_length and min_length.strip() else None
-        max_length_int = int(max_length) if max_length and max_length.strip() else None
-        min_colors_int = int(min_colors) if min_colors and min_colors.strip() else None
-        max_colors_int = int(max_colors) if max_colors and max_colors.strip() else None
+        page_int = max(1, int(page)) if page and page != "None" else 1
+        per_page_int = max(1, min(50, int(per_page))) if per_page and per_page != "None" else 5
     except ValueError:
-        raise HTTPException(status_code=400, detail="Числовые параметры должны быть целыми числами")
+        raise HTTPException(
+            status_code=400,
+            detail="Параметры пагинации должны быть целыми числами"
+        )
+
+    # Функция для безопасного преобразования параметров
+    def safe_int_convert(param):
+        if not param or param == "None":
+            return None
+        try:
+            return int(param)
+        except ValueError:
+            return None
+
+    # Обработка числовых фильтров
+    min_length_int = safe_int_convert(min_length)
+    max_length_int = safe_int_convert(max_length)
+    min_colors_int = safe_int_convert(min_colors)
+    max_colors_int = safe_int_convert(max_colors)
 
     # Обработка дат
     date_from_dt = None
     date_to_dt = None
     date_format = r'^\d{4}-\d{2}-\d{2}$'
 
-    if date_from:
+    if date_from and date_from != "None":
         if not re.match(date_format, date_from):
-            raise HTTPException(status_code=400, detail="Неверный формат даты (используйте YYYY-MM-DD)")
+            raise HTTPException(
+                status_code=400,
+                detail="Неверный формат даты (используйте YYYY-MM-DD)"
+            )
         date_from_dt = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
-    if date_to:
+    if date_to and date_to != "None":
         if not re.match(date_format, date_to):
-            raise HTTPException(status_code=400, detail="Неверный формат даты (используйте YYYY-MM-DD)")
+            raise HTTPException(
+                status_code=400,
+                detail="Неверный формат даты (используйте YYYY-MM-DD)"
+            )
         date_to_dt = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         date_to_dt = date_to_dt.replace(hour=23, minute=59, second=59)
 
     # Обработка цветов
     selected_color_ids = []
-    if color_ids:
+    if color_ids and color_ids != "None":
         try:
-            selected_color_ids = [ObjectId(cid.strip()) for cid in color_ids.split(',') if cid.strip()]
+            selected_color_ids = [
+                ObjectId(cid.strip())
+                for cid in color_ids.split(',')
+                if cid.strip()
+            ]
         except:
-            raise HTTPException(status_code=400, detail="Неверный формат ID цветов")
+            raise HTTPException(
+                status_code=400,
+                detail="Неверный формат ID цветов"
+            )
 
-    # Создаем базовый запрос
+    # Базовый запрос
     query = {}
-
-    # Добавляем фильтры
-    if type:
+    if type and type != "None":
         query["type"] = type
-
-    # Фильтр по длине
-    if min_length_int is not None or max_length_int is not None:
-        query["length"] = {}
-        if min_length_int is not None:
-            query["length"]["$gte"] = min_length_int
-        if max_length_int is not None:
-            query["length"]["$lte"] = max_length_int
-
-    # Фильтр по количеству цветов
-    if min_colors_int is not None or max_colors_int is not None:
-        query["color_count"] = {}
-        if min_colors_int is not None:
-            query["color_count"]["$gte"] = min_colors_int
-        if max_colors_int is not None:
-            query["color_count"]["$lte"] = max_colors_int
-
-    # Фильтр по дате
     if date_from_dt or date_to_dt:
         query["created_at"] = {}
         if date_from_dt:
@@ -186,79 +210,133 @@ async def view_all_posts(
         if date_to_dt:
             query["created_at"]["$lte"] = date_to_dt
 
-    # Определяем сортировку
-    sort_field = sort_by if sort_by in ["created_at", "likes", "color_count", "length"] else "created_at"
-    sort_direction = -1 if sort_order == "desc" else 1
-
-    # Получаем все цвета из базы
+    # Получаем данные из БД
     all_colors = await db.colors.find().to_list(None)
+    actions = {
+        action["_id"]: action.get("length", 0)
+        async for action in db.actions.find({})
+    }
 
-    # Обработка для сортировки по лайкам (используем агрегацию)
-    if sort_field == "likes":
-        pipeline = [
-            {"$match": query},
-            {"$addFields": {
-                "likes_count": {"$size": {"$ifNull": ["$likes", []]}}
-            }},
-            {"$sort": {"likes_count": sort_direction}}
-        ]
-
-        posts = []
-        async for post in db.posts.aggregate(pipeline):
-            scheme_colors = set()
-            for row in post['scheme']:
-                for cell in row:
-                    if isinstance(cell, (list, tuple)) and len(cell) == 2:
-                        scheme_colors.add(ObjectId(cell[0]))
-
-            if selected_color_ids and not all(cid in scheme_colors for cid in selected_color_ids):
-                continue
-
-            post["author"] = await get_user(post["author_id"])
-            post["scheme_colors"] = list(scheme_colors)
-            post["likes_count"] = len(post.get("likes", []))
-            posts.append(post)
+    # Получаем и обрабатываем посты
+    if sort_by in ["color_count", "length"]:
+        cursor = db.posts.find(query)
     else:
-        # Обычная сортировка для других полей
-        posts = []
-        async for post in db.posts.find(query).sort(sort_field, sort_direction):
-            post["author"] = await get_user(post["author_id"])
+        sort_direction = DESCENDING if sort_order == "desc" else ASCENDING
+        cursor = db.posts.find(query).sort(sort_by, sort_direction)
 
-            # Извлекаем все color_id из схемы
-            scheme_colors = set()
-            for row in post['scheme']:
-                for cell in row:
-                    if isinstance(cell, (list, tuple)) and len(cell) == 2:
+    processed_posts = []
+    async for post in cursor:
+        unique_colors = set()
+        total_length = 0
+
+        for row in post['scheme']:
+            for cell in row:
+                if isinstance(cell, (list, tuple)) and len(cell) == 2:
+                    try:
                         color_id = ObjectId(cell[0])
-                        scheme_colors.add(color_id)
+                        action_id = ObjectId(cell[1])
+                        unique_colors.add(color_id)
+                        total_length += actions.get(action_id, 0)
+                    except:
+                        continue
 
-            # Фильтрация по цветам
-            if selected_color_ids and not all(cid in scheme_colors for cid in selected_color_ids):
-                continue
+        # Применяем фильтры
+        if min_length_int is not None and total_length < min_length_int:
+            continue
+        if max_length_int is not None and total_length > max_length_int:
+            continue
+        if min_colors_int is not None and len(unique_colors) < min_colors_int:
+            continue
+        if max_colors_int is not None and len(unique_colors) > max_colors_int:
+            continue
+        if selected_color_ids and not all(cid in unique_colors for cid in selected_color_ids):
+            continue
 
-            post["scheme_colors"] = list(scheme_colors)
-            post["likes_count"] = len(post.get("likes", []))
-            posts.append(post)
+        post["color_count"] = len(unique_colors)
+        post["length"] = total_length
+        post["author"] = await get_user(post["author_id"])
+        post["likes_count"] = len(post.get("likes", []))
+        processed_posts.append(post)
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "current_user": current_user,
-        "posts": posts,
-        "filters": {
-            "type": type,
-            "color_ids": color_ids,
-            "min_length": min_length,
-            "max_length": max_length,
-            "min_colors": min_colors,
-            "max_colors": max_colors,
-            "date_from": date_from,
-            "date_to": date_to,
-            "sort_by": sort_by,
-            "sort_order": sort_order
-        },
-        "available_types": await db.posts.distinct("type"),
-        "available_colors": all_colors
-    })
+    # Сортировка
+    if sort_by in ["color_count", "length", "likes"]:
+        reverse = sort_order == "desc"
+        sort_field = "likes_count" if sort_by == "likes" else sort_by
+        processed_posts.sort(key=lambda x: x[sort_field], reverse=reverse)
+
+    # Пагинация
+    total_posts = len(processed_posts)
+    total_pages = ceil(total_posts / per_page_int) if total_posts > 0 else 1
+    page_int = max(1, min(page_int, total_pages))
+    start_idx = (page_int - 1) * per_page_int
+    end_idx = start_idx + per_page_int
+    paginated_posts = processed_posts[start_idx:end_idx]
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "current_user": current_user,
+            "posts": paginated_posts,
+            "filters": {
+                "type": type,
+                "color_ids": color_ids,
+                "min_length": min_length,
+                "max_length": max_length,
+                "min_colors": min_colors,
+                "max_colors": max_colors,
+                "date_from": date_from,
+                "date_to": date_to,
+                "sort_by": sort_by,
+                "sort_order": sort_order
+            },
+            "pagination": {
+                "page": page_int,
+                "per_page": per_page_int,
+                "total_posts": total_posts,
+                "total_pages": total_pages
+            },
+            "available_types": await db.posts.distinct("type"),
+            "available_colors": all_colors,
+            "min": min  # Функция min для шаблона
+        }
+    )
+
+
+# Константы для типов стежков
+STITCH_TYPES = {
+    "крестик": {"symbol": "X", "length": 10},
+    "полукрест": {"symbol": "/", "length": 5},
+    "гобеленовый": {"symbol": "=", "length": 15},
+    "стебельчатый": {"symbol": "|", "length": 8},
+    "левый стежок": {"symbol": "}", "length": 18},
+    "полуторный": {"symbol": "*", "length": 17},
+    "тамбурный": {"symbol": "^", "length": 16},
+    "расколотый": {"symbol": ";", "length": 14},
+    "французский": {"symbol": "@", "length": 13},
+    "гладью": {"symbol": "$", "length": 12},
+    "назад вперед": {"symbol": "%", "length": 11}
+}
+
+COLOR_HEX_MAP = {
+    "red": "#ff0000",
+    "blue": "#0000ff",
+    "green": "#00ff00",
+    "black": "#000000",
+    "white": "#ffffff"
+}
+
+
+def color_name_to_hex(color_name: str) -> str:
+    return COLOR_HEX_MAP.get(color_name.lower(), "#cccccc")
+
+
+async def get_color_name(color_ref: str) -> str:
+    try:
+        color = await db.colors.find_one({"_id": ObjectId(color_ref)})
+        return color["name"] if color else "Unknown"
+    except:
+        return "Unknown"
 
 
 @app.get("/post/{post_id}", response_class=HTMLResponse)
@@ -268,20 +346,13 @@ async def view_post(request: Request, post_id: str):
         if not post:
             return HTMLResponse("Post not found", status_code=404)
 
-        # Получаем автора
+        # Получаем информацию об авторе
         post["author"] = await get_user(post["author_id"])
 
-        # Форматируем дату поста
+        # Форматируем дату
         post["formatted_date"] = post.get("created_at", datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M')
 
-        # Получаем и форматируем комментарии
-        post["comments"] = []
-        async for comment in db.comments.find({"post_id": ObjectId(post_id)}):
-            comment["author"] = await get_user(comment["author_id"])
-            comment["formatted_date"] = comment.get("created_at", datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M')
-            post["comments"].append(comment)
-
-        # Обработка легенды
+        # Обработка легенды цветов
         color_legend = []
         for item in post.get('legend', []):
             if isinstance(item, (list, tuple)) and len(item) == 2:
@@ -295,19 +366,46 @@ async def view_post(request: Request, post_id: str):
 
         post["color_legend"] = color_legend
 
-        # Проверяем лайки/дизлайки
-        post["user_liked"] = False
-        post["user_disliked"] = False
-        if current_user:
-            user_id = ObjectId(current_user["_id"])
-            post["user_liked"] = user_id in post.get("likes", [])
-            post["user_disliked"] = user_id in post.get("dislikes", [])
+        # Получаем информацию о всех действиях из STITCH_TYPES
+        valid_actions = list(STITCH_TYPES.keys())
+        actions_dict = {}
+        async for action in db.actions.find({"description": {"$in": valid_actions}}):
+            action_desc = action['description'].lower()
+            if action_desc in STITCH_TYPES:
+                actions_dict[str(action['_id'])] = {
+                    "description": action_desc,
+                    "symbol": STITCH_TYPES[action_desc]["symbol"]
+                }
+
+        # Строим схему для отображения
+        grid_scheme = []
+        for row in post["scheme"]:
+            grid_row = []
+            for color_id, action_id in row:
+                color_name = await get_color_name(color_id)
+                action_info = actions_dict.get(str(action_id), {})
+
+                grid_row.append({
+                    "color_hex": color_name_to_hex(color_name),
+                    "symbol": action_info.get("symbol", "?"),
+                    "title": f"{action_info.get('description', 'Unknown')}, {color_name}"
+                })
+            grid_scheme.append(grid_row)
+
+        stitch_legend = [{
+            "description": name,
+            "symbol": info["symbol"]
+        } for name, info in STITCH_TYPES.items()]
 
         return templates.TemplateResponse("post_detail.html", {
             "request": request,
             "post": post,
-            "current_user": current_user
+            "current_user": current_user,
+            "grid_scheme": grid_scheme,
+            "stitch_legend": stitch_legend,
+            "color_name_to_hex": color_name_to_hex
         })
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -366,7 +464,7 @@ async def add_comment(request: Request, post_id: str, comment_text: str = Form(.
         comment = {
             "post_id": ObjectId(post_id),
             "author_id": ObjectId(current_user["_id"]),
-            "text": comment_text[:512],  # Ограничиваем длину
+            "text": comment_text[:512],
             "created_at": datetime.now(timezone.utc)
         }
 
@@ -580,6 +678,7 @@ async def create_post(
         raise HTTPException(status_code=401, detail="Требуется авторизация")
 
     try:
+        # Безопасный парсинг схемы вместо eval
         try:
             import ast
             scheme_data = ast.literal_eval(scheme)
@@ -681,7 +780,7 @@ async def create_action(
     try:
         # Создаем новое действие
         action = {
-            "description": description[:64],
+            "description": description[:64],  # Ограничиваем длину
             "length": length,
             "created_at": datetime.now(timezone.utc),
             "created_by": ObjectId(current_user["_id"])
@@ -696,7 +795,183 @@ async def create_action(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/database-tools", response_class=HTMLResponse)
+async def database_tools_page(request: Request):
+    """Страница управления импортом/экспортом БД без авторизации"""
+    return templates.TemplateResponse("database_tools.html", {
+        "request": request,
+        "current_user": None  # Убираем проверку пользователя
+    })
+
+
+@app.get("/export-database")
+async def export_entire_database(background_tasks: BackgroundTasks):
+    """Экспорт всей базы данных в один JSON файл"""
+    try:
+        # Создаем временный файл
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False, encoding='utf-8') as tmp_file:
+            collections = await db.list_collection_names()
+            db_data = {}
+
+            for collection_name in collections:
+                if collection_name.startswith('system.'):
+                    continue  # Пропускаем системные коллекции
+
+                cursor = db[collection_name].find()
+                db_data[collection_name] = await cursor.to_list(length=None)
+
+            # Сериализуем с использованием bson.json_util
+            json.dump(
+                db_data,
+                tmp_file,
+                default=json_util.default,
+                ensure_ascii=False,
+                indent=2
+            )
+            tmp_file_path = tmp_file.name
+
+        # Создаем удобное имя файла
+        filename = f"embroidery_db_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+        # Добавляем задачу удаления временного файла
+        background_tasks.add_task(lambda: os.unlink(tmp_file_path))
+
+        # Возвращаем файл для скачивания
+        return FileResponse(
+            tmp_file_path,
+            media_type='application/json',
+            filename=filename
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка при экспорте базы данных: {str(e)}"
+        )
+
+
+@app.post("/import-database")
+async def import_entire_database(
+        file: UploadFile = File(...),
+        clear_existing: bool = Form(False)
+):
+    """Импорт всей базы данных без проверки прав"""
+    if not file.filename.endswith('.json'):
+        raise HTTPException(status_code=400, detail="Требуется JSON файл")
+
+    try:
+        contents = await file.read()
+        db_data = json_util.loads(contents.decode('utf-8'))
+
+        results = {}
+        for collection_name, documents in db_data.items():
+            if collection_name.startswith('system.'):
+                continue
+
+            collection = db[collection_name]
+
+            if clear_existing:
+                await collection.delete_many({})
+
+            if documents and len(documents) > 0:
+                result = await collection.insert_many(documents)
+                results[collection_name] = len(result.inserted_ids)
+            else:
+                results[collection_name] = 0
+
+        return {
+            "message": "Импорт базы данных завершен",
+            "results": results
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка импорта: {str(e)}")
+
+
+@app.post("/delete-database")
+async def delete_entire_database():
+    """Удаление всех данных из базы (кроме системных коллекций)"""
+    try:
+        collections = await db.list_collection_names()
+        results = {}
+
+        for collection_name in collections:
+            if collection_name.startswith('system.'):
+                continue
+
+            result = await db[collection_name].delete_many({})
+            results[collection_name] = result.deleted_count
+
+        return {
+            "message": "База данных успешно очищена",
+            "results": results,
+            "total_deleted": sum(results.values())
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка при очистке базы данных: {str(e)}"
+        )
+
+
+@app.get("/actions", response_class=HTMLResponse)
+async def view_actions(
+        request: Request,
+        search: str = Query(None),
+        sort_by: str = Query("length"),  # Сортировка по длине по умолчанию
+        sort_order: str = Query("desc"),  # По убыванию по умолчанию
+        page: str = Query("1"),
+        per_page: str = Query("10")
+):
+    """Страница просмотра стежков"""
+
+    # Обработка параметров
+    try:
+        page_int = max(1, int(page)) if page and page != "None" else 1
+        per_page_int = max(1, min(50, int(per_page))) if per_page and per_page != "None" else 10
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Неверные параметры")
+
+    # Поиск по описанию
+    query = {}
+    if search and search != "None":
+        query["description"] = {"$regex": f".*{search}.*", "$options": "i"}
+
+    # Сортировка по длине
+    sort_field = "length"
+    sort_direction = DESCENDING if sort_order == "desc" else ASCENDING
+
+    # Получаем данные
+    total_actions = await db.actions.count_documents(query)
+    total_pages = ceil(total_actions / per_page_int) if total_actions > 0 else 1
+    page_int = min(page_int, total_pages)
+    skip = (page_int - 1) * per_page_int
+
+    actions = await db.actions.find(query) \
+        .sort(sort_field, sort_direction) \
+        .skip(skip) \
+        .limit(per_page_int) \
+        .to_list(None)
+
+    return templates.TemplateResponse(
+        "actions.html",
+        {
+            "request": request,
+            "actions": actions,
+            "search": search if search != "None" else "",
+            "sort_order": sort_order,
+            "pagination": {
+                "page": page_int,
+                "per_page": per_page_int,
+                "total_actions": total_actions,
+                "total_pages": total_pages
+            }
+        }
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8081)

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ post.scheme_name }} - Детали</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .user-panel {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .user-panel a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #0066cc;
+        }
+        .post-header {
+            margin-bottom: 20px;
+        }
+        .post-image {
+            max-width: 100%;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .post-meta {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        .post-actions {
+            margin: 15px 0;
+        }
+        .post-actions button {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            background: #f5f5f5;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .post-actions button.liked {
+            background: #4CAF50;
+            color: white;
+        }
+        .post-actions button.disliked {
+            background: #f44336;
+            color: white;
+        }
+        .legend {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .legend-item {
+            display: inline-block;
+            margin: 5px 10px;
+        }
+        .scheme {
+            font-family: monospace;
+            white-space: pre;
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .comments-section {
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .comment {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .comment-author {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .comment-date {
+            color: #666;
+            font-size: 0.8em;
+        }
+        .comment-text {
+            margin-top: 5px;
+        }
+        .comment-form {
+            margin-top: 20px;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .comment-form textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .comment-form button {
+            padding: 8px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .color-box {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            border: 1px solid #ccc;
+            vertical-align: middle;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 8px 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #333;
+        }
+
+        /* Новые стили для схемы */
+        .scheme-container {
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .scheme-grid {
+            display: inline-block;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .scheme-row {
+            display: flex;
+        }
+        .scheme-cell {
+            position: relative;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            border: 1px solid #eee;
+            cursor: default;
+        }
+        .scheme-cell::before {
+            content: attr(data-symbol);
+            position: absolute;
+            color: #000000;
+            text-shadow:
+                -1px -1px 0 #fff,
+                 1px -1px 0 #fff,
+                -1px  1px 0 #fff,
+                 1px  1px 0 #fff;
+        }
+        .stitch-symbol {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            margin-right: 5px;
+            font-weight: bold;
+        }
+        .legend-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .color-legend, .stitch-legend {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            flex: 1;
+            min-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-panel">
+        {% if current_user %}
+            <span>👋 Привет, {{ current_user.name }}!</span>
+            <a href="/logout">🚪 Выйти</a>
+            <a href="/">🏠 Главная</a>
+            <a href="/users">👥 Пользователи</a>
+        {% else %}
+            <a href="/login">🔑 Войти</a>
+            <a href="/register">📝 Регистрация</a>
+            <a href="/">🏠 Главная</a>
+            <a href="/users">👥 Пользователи</a>
+        {% endif %}
+    </div>
+
+    <div class="post-header">
+        <h1>{{ post.scheme_name }}</h1>
+        <div class="post-meta">
+            Автор: <a href="/user/{{ post.author._id }}">{{ post.author.name }} {{ post.author.surname }}</a> |
+            Дата: {{ post.formatted_date }} |
+            Тип: {{ post.type }}
+        </div>
+
+        <div class="post-actions">
+            {% if current_user %}
+                <form method="post" action="/post/{{ post._id }}/like" style="display: inline;">
+                    <button type="submit" {% if post.user_liked %}class="liked"{% endif %}>
+                        👍 {{ post.likes|length }}
+                    </button>
+                </form>
+                <form method="post" action="/post/{{ post._id }}/dislike" style="display: inline; margin-left: 10px;">
+                    <button type="submit" {% if post.user_disliked %}class="disliked"{% endif %}>
+                        👎 {{ post.dislikes|length }}
+                    </button>
+                </form>
+            {% else %}
+                <span>👍 {{ post.likes|length }}</span>
+                <span style="margin-left: 10px;">👎 {{ post.dislikes|length }}</span>
+                <small>(<a href="/login">Войдите</a>, чтобы оценить)</small>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if post.preview_image_id %}
+    <div>
+        <img src="/image/{{ post.preview_image_id }}" class="post-image" alt="{{ post.scheme_name }}">
+    </div>
+    {% endif %}
+
+    <div class="post-content">
+        {% if post.description %}
+        <h2>Описание</h2>
+        <p>{{ post.description }}</p>
+        {% endif %}
+
+        {% if post.comment %}
+        <h3>Комментарий автора</h3>
+        <p>{{ post.comment }}</p>
+        {% endif %}
+
+        <div class="legend-section">
+            <div class="stitch-legend">
+                <h2>Легенда стежков</h2>
+                {% for item in stitch_legend %}
+                <div class="legend-item">
+                    <span class="stitch-symbol">{{ item.symbol }}</span> - {{ item.description }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <h2>Схема вышивки</h2>
+        <div class="scheme-container">
+            <div class="scheme-grid">
+                {% for row in grid_scheme %}
+                <div class="scheme-row">
+                    {% for cell in row %}
+                    <div class="scheme-cell"
+                         style="background-color: {{ cell.color_hex }};"
+                         title="{{ cell.title }}"
+                         data-symbol="{{ cell.symbol }}">
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="comments-section">
+        <h2>Комментарии ({{ post.comments|length }})</h2>
+
+        {% if current_user %}
+        <div class="comment-form">
+            <form method="post" action="/post/{{ post._id }}/comment">
+                <textarea name="comment_text" placeholder="Напишите ваш комментарий..." required></textarea>
+                <button type="submit">Отправить комментарий</button>
+            </form>
+        </div>
+        {% else %}
+        <p><a href="/login">Войдите</a>, чтобы оставить комментарий</p>
+        {% endif %}
+
+        {% if post.comments %}
+            {% for comment in post.comments %}
+            <div class="comment">
+                <div class="comment-author">{{ comment.author.name }} {{ comment.author.surname }}</div>
+                <div class="comment-date">{{ comment.formatted_date }}</div>
+                <div class="comment-text">{{ comment.text }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>Пока нет комментариев. Будьте первым!</p>
+        {% endif %}
+    </div>
+
+    <a href="/" class="back-link">← Назад к списку постов</a>
+</body>
+</html>

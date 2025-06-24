@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Просмотр стежков</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .search-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .action-list {
+            margin-bottom: 20px;
+        }
+        .action-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .action-length {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+        }
+        select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            padding: 5px 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="text"] {
+            padding: 8px;
+            width: 300px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Просмотр стежков</h1>
+
+    <div class="search-box">
+        <form method="get">
+            <input type="text" name="search" placeholder="Поиск по описанию" value="{{ search }}">
+            <input type="hidden" name="sort_order" value="{{ sort_order }}">
+            <button type="submit">Найти</button>
+            <a href="/actions" style="margin-left: 10px;">Сбросить</a>
+        </form>
+    </div>
+
+    <div class="action-list">
+        {% for action in actions %}
+        <div class="action-item">
+            <div class="action-length">Длина: {{ action.length }} ед.</div>
+            <div class="action-description">
+                {% if action.description %}
+                    {{ action.description }}
+                {% else %}
+                    <span style="color: #999;">Описание отсутствует</span>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="action-item">
+            <p>Стежки не найдены</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if actions %}
+    <div class="pagination">
+        <div>
+            Показано {{ (pagination.page-1)*pagination.per_page+1 }} -
+            {{ [pagination.page*pagination.per_page, pagination.total_actions]|min }}
+            из {{ pagination.total_actions }}
+        </div>
+
+        <div class="pagination-controls">
+            <form method="get">
+                <input type="hidden" name="search" value="{{ search }}">
+                <input type="hidden" name="sort_order" value="{{ sort_order }}">
+
+                <select name="page" onchange="this.form.submit()">
+                    {% for p in range(1, pagination.total_pages + 1) %}
+                    <option value="{{ p }}" {% if p == pagination.page %}selected{% endif %}>
+                        Страница {{ p }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <select name="per_page" onchange="this.form.submit()">
+                    <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10 на странице</option>
+                    <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20 на странице</option>
+                    <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50 на странице</option>
+                </select>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        // Функция для переключения сортировки
+        function toggleSort() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('sort_order',
+                url.searchParams.get('sort_order') === 'desc' ? 'asc' : 'desc');
+            window.location.href = url.toString();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const sortButton = document.createElement('button');
+            sortButton.textContent = 'Сортировка: {{ "По убыванию" if sort_order == "desc" else "По возрастанию" }}';
+            sortButton.onclick = toggleSort;
+            document.querySelector('.search-box').appendChild(sortButton);
+        });
+    </script>
+</body>
+</html>

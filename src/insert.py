@@ -21,25 +21,53 @@ async def upload_image_from_file(fs, file_path, filename=None):
         return await fs.upload_from_stream(filename, f)
 
 
+async def is_database_empty(db):
+    """Проверяет, пустая ли база данных"""
+    collections = await db.list_collection_names()
+    
+    for collection_name in collections:
+        if collection_name in ['users', 'posts', 'colors', 'actions', 'comments']:
+            count = await db[collection_name].count_documents({})
+            if count > 0:
+                return False
+    return True
+
+
 async def insert_test_data():
     """Вставка тестовых данных с реальными изображениями"""
-    # Подключение к MongoDB
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    mongodb_url = os.getenv("MONGODB_URL", "mongodb://db:27017")
+    client = AsyncIOMotorClient(mongodb_url)
     db = client.embroidery_db
     fs = AsyncIOMotorGridFSBucket(db)
 
     try:
+        # Проверяем, есть ли данные в базе
+        if not await is_database_empty(db):
+            print("База данных уже содержит данные. Заполнение тестовыми данными пропущено.")
+            return {
+                "status": "skipped",
+                "message": "Database already contains data"
+            }
+
+        print("База данных пустая, начинаем заполнение тестовыми данными...")
         # 1. Создаем тестовые цвета
-        colors = ["Красный", "Синий", "Зеленый", "Черный", "Белый"]
+        colors = ["red", "blue", "green", "black", "white"]
         color_ids = [(await db.colors.insert_one({"name": color})).inserted_id for color in colors]
         print(f"Добавлено {len(color_ids)} цветов")
 
         # 2. Создаем тестовые действия
         actions = [
-            {"description": "Крестик", "length": 10},
-            {"description": "Полукрест", "length": 5},
-            {"description": "Гобеленовый", "length": 15},
-            {"description": "Стебельчатый", "length": 8}
+            {"description": "крестик", "length": 10},
+            {"description": "полукрест", "length": 5},
+            {"description": "гобеленовый", "length": 15},
+            {"description": "левый стежок", "length": 18},
+            {"description": "полуторный", "length": 17},
+            {"description": "тамбурный", "length": 16},
+            {"description": "расколотый", "length": 14},
+            {"description": "французский", "length": 13},
+            {"description": "гладью", "length": 12},
+            {"description": "назад вперед", "length": 11},
+            {"description": "стебельчатый", "length": 8}
         ]
         action_ids = [(await db.actions.insert_one(action)).inserted_id for action in actions]
         print(f"Добавлено {len(action_ids)} действий")
@@ -68,7 +96,7 @@ async def insert_test_data():
         user_ids = [(await db.users.insert_one(user)).inserted_id for user in users]
         print(f"Добавлено {len(user_ids)} пользователей")
 
-        images_dir = Path("images")
+        images_dir = Path("src/images")
         images_dir.mkdir(exist_ok=True)
 
         # 4. Создаем тестовые посты с реальными изображениями
@@ -89,8 +117,8 @@ async def insert_test_data():
                     ("2", str(color_ids[1]))
                 ],
                 "type": "вышивка",
-                "scheme_name": "Цветочный узор",
-                "description": "Схема для вышивки цветов",
+                "scheme_name": "Животные",
+                "description": "Схема с животными",
                 "comment": "Используйте нитки DMC",
                 "author_id": user_ids[0],
                 "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
@@ -115,8 +143,8 @@ async def insert_test_data():
                     ("5", str(color_ids[4]))   # 5: Белый
                 ],
                 "type": "вышивка",
-                "scheme_name": "Животные",
-                "description": "Схема с животными",
+                "scheme_name": "Цветы",
+                "description": "Схема для вышивки цветов",
                 "comment": "Рекомендую канву Aida 16",
                 "author_id": user_ids[1],
                 "created_at": datetime(2023, 8, 15, 14, 30, 0, tzinfo=timezone.utc),
@@ -131,14 +159,30 @@ async def insert_test_data():
                     "животные.jpg"
                 ),
                 "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]), (color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[1], action_ids[0]), (color_ids[2], action_ids[1]), (color_ids[3], action_ids[2]), (color_ids[4], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[2], action_ids[0]), (color_ids[3], action_ids[1]), (color_ids[4], action_ids[2]), (color_ids[0], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[3], action_ids[0]), (color_ids[4], action_ids[1]), (color_ids[0], action_ids[2]), (color_ids[1], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[4], action_ids[0]), (color_ids[0], action_ids[1]), (color_ids[1], action_ids[2]), (color_ids[2], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
                     [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
-                     (color_ids[3], action_ids[3])],
-                    [(color_ids[1], action_ids[0]), (color_ids[2], action_ids[1]), (color_ids[3], action_ids[2]),
-                     (color_ids[4], action_ids[3])],
-                    [(color_ids[2], action_ids[0]), (color_ids[3], action_ids[1]), (color_ids[4], action_ids[2]),
-                     (color_ids[0], action_ids[3])],
-                    [(color_ids[3], action_ids[0]), (color_ids[4], action_ids[1]), (color_ids[0], action_ids[2]),
-                     (color_ids[1], action_ids[3])]
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]), (color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[1], action_ids[0]), (color_ids[2], action_ids[1]), (color_ids[3], action_ids[2]), (color_ids[4], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[2], action_ids[0]), (color_ids[3], action_ids[1]), (color_ids[4], action_ids[2]), (color_ids[0], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])]
                 ],
                 "legend": [
                     ("4", str(color_ids[3])),  # 4: Черный
@@ -152,6 +196,220 @@ async def insert_test_data():
                 "created_at": datetime(2024, 8, 15, 14, 30, 0, tzinfo=timezone.utc),
                 "updated_at": datetime(2024, 9, 15, 14, 30, 0, tzinfo=timezone.utc),
                 "likes": [user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1])],
+                    [(color_ids[2], action_ids[2]), (color_ids[3], action_ids[3])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Животные",
+                "description": "Схема с животными",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1])],
+                    [(color_ids[2], action_ids[2]), (color_ids[3], action_ids[3])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Животные",
+                "description": "Схема с животными",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1])],
+                    [(color_ids[2], action_ids[2]), (color_ids[3], action_ids[3])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Животные",
+                "description": "Схема с животными",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1])],
+                    [(color_ids[2], action_ids[2]), (color_ids[3], action_ids[3])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Животные",
+                "description": "Животные",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[3]), (color_ids[3], action_ids[4]),(color_ids[3], action_ids[5]),(color_ids[3], action_ids[6]),(color_ids[3], action_ids[7]),(color_ids[1], action_ids[8]), (color_ids[2], action_ids[9]),(color_ids[1], action_ids[10]), (color_ids[2], action_ids[2])],
+                    [(color_ids[1], action_ids[0]), (color_ids[2], action_ids[1]), (color_ids[3], action_ids[2]), (color_ids[4], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[2], action_ids[0]), (color_ids[3], action_ids[1]), (color_ids[4], action_ids[2]), (color_ids[0], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[3], action_ids[0]), (color_ids[4], action_ids[1]), (color_ids[0], action_ids[2]), (color_ids[1], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[4], action_ids[0]), (color_ids[0], action_ids[1]), (color_ids[1], action_ids[2]), (color_ids[2], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]), (color_ids[3], action_ids[3]),
+                     (color_ids[3], action_ids[3]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),
+                     (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]), (color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[1], action_ids[0]), (color_ids[2], action_ids[1]), (color_ids[3], action_ids[2]), (color_ids[4], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])],
+                    [(color_ids[2], action_ids[0]), (color_ids[3], action_ids[1]), (color_ids[4], action_ids[2]), (color_ids[0], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[3], action_ids[3]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2]),(color_ids[1], action_ids[1]), (color_ids[2], action_ids[2])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Тест",
+                "description": "Тест на все виды действий",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1])],
+                    [(color_ids[2], action_ids[2]), (color_ids[3], action_ids[3])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Животные",
+                "description": "Схема с животными",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1])],
+                    [(color_ids[2], action_ids[2]), (color_ids[3], action_ids[3])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Животные",
+                "description": "Схема с животными",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
+                "dislikes": []
+            },
+            {
+                "preview_image_id": await upload_image_from_file(
+                    fs,
+                    images_dir / "photo1.jpg",
+                    "цветочный_узор.jpg"
+                ),
+                "scheme": [
+                    [(color_ids[0], action_ids[0]), (color_ids[1], action_ids[1])],
+                    [(color_ids[2], action_ids[2]), (color_ids[3], action_ids[3])]
+                ],
+                "legend": [
+                    ("1", str(color_ids[0])),
+                    ("2", str(color_ids[1]))
+                ],
+                "type": "вышивка",
+                "scheme_name": "Животные",
+                "description": "Схема с животными",
+                "comment": "Используйте нитки DMC",
+                "author_id": user_ids[0],
+                "created_at": datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2023, 7, 15, 14, 30, 0, tzinfo=timezone.utc),
+                "likes": [user_ids[1], user_ids[0]],
                 "dislikes": []
             }
         ]
@@ -186,7 +444,6 @@ async def insert_test_data():
         }
     finally:
         client.close()
-
 
 if __name__ == "__main__":
     asyncio.run(insert_test_data())
