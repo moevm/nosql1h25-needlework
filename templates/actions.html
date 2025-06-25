@@ -16,6 +16,15 @@
             background: #f5f5f5;
             border-radius: 8px;
         }
+        .search-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .search-row label {
+            min-width: 120px;
+        }
         .action-list {
             margin-bottom: 20px;
         }
@@ -43,7 +52,7 @@
             display: flex;
             gap: 10px;
         }
-        select {
+        select, input[type="number"] {
             padding: 5px;
             border-radius: 4px;
             border: 1px solid #ddd;
@@ -62,6 +71,14 @@
             border-radius: 4px;
             border: 1px solid #ddd;
         }
+        .length-filters {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .length-filters input {
+            width: 80px;
+        }
     </style>
 </head>
 <body>
@@ -69,10 +86,28 @@
 
     <div class="search-box">
         <form method="get">
-            <input type="text" name="search" placeholder="Поиск по описанию" value="{{ search }}">
+            <div class="search-row">
+                <label for="search">Поиск по описанию:</label>
+                <input type="text" id="search" name="search" placeholder="Введите описание" value="{{ search }}">
+            </div>
+            
+            <div class="search-row">
+                <label>Фильтр по длине:</label>
+                <div class="length-filters">
+                    <input type="number" name="min_length" placeholder="От" value="{{ min_length }}" step="1" min="0">
+                    <input type="number" name="max_length" placeholder="До" value="{{ max_length }}" step="1" min="0">
+                </div>
+            </div>
+            
+            <div class="search-row">
+                <button type="submit">Применить фильтры</button>
+                <a href="/actions" style="margin-left: 10px;">Сбросить все</a>
+                <button type="button" id="sortButton" style="margin-left: auto;">
+                    Сортировка: {{ "По убыванию" if sort_order == "desc" else "По возрастанию" }}
+                </button>
+            </div>
+            
             <input type="hidden" name="sort_order" value="{{ sort_order }}">
-            <button type="submit">Найти</button>
-            <a href="/actions" style="margin-left: 10px;">Сбросить</a>
         </form>
     </div>
 
@@ -106,6 +141,8 @@
         <div class="pagination-controls">
             <form method="get">
                 <input type="hidden" name="search" value="{{ search }}">
+                <input type="hidden" name="min_length" value="{{ min_length }}">
+                <input type="hidden" name="max_length" value="{{ max_length }}">
                 <input type="hidden" name="sort_order" value="{{ sort_order }}">
 
                 <select name="page" onchange="this.form.submit()">
@@ -129,17 +166,14 @@
     <script>
         // Функция для переключения сортировки
         function toggleSort() {
-            const url = new URL(window.location.href);
-            url.searchParams.set('sort_order',
-                url.searchParams.get('sort_order') === 'desc' ? 'asc' : 'desc');
-            window.location.href = url.toString();
+            const form = document.querySelector('.search-box form');
+            const sortOrderInput = form.querySelector('input[name="sort_order"]');
+            sortOrderInput.value = sortOrderInput.value === 'desc' ? 'asc' : 'desc';
+            form.submit();
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const sortButton = document.createElement('button');
-            sortButton.textContent = 'Сортировка: {{ "По убыванию" if sort_order == "desc" else "По возрастанию" }}';
-            sortButton.onclick = toggleSort;
-            document.querySelector('.search-box').appendChild(sortButton);
+            document.getElementById('sortButton').addEventListener('click', toggleSort);
         });
     </script>
 </body>
