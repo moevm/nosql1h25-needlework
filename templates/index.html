@@ -47,6 +47,10 @@
             align-items: center;
             gap: 10px;
             margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-row > * {
+            margin-bottom: 5px;
         }
         label {
             min-width: 150px;
@@ -57,8 +61,14 @@
             border-radius: 4px;
             border: 1px solid #ddd;
         }
-        input[type="number"], input[type="date"] {
+        input[type="number"] {
             width: 120px;
+        }
+        input[type="date"] {
+            width: 150px;
+        }
+        input[type="time"] {
+            width: 100px;
         }
         button {
             padding: 8px 15px;
@@ -164,6 +174,31 @@
         .pagination select {
             padding: 6px 10px;
         }
+        .datetime-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .datetime-separator {
+            margin: 0 5px;
+            color: #666;
+        }
+        .user-search {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-search input {
+            width: 200px;
+        }
+        .likes-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .likes-filter input {
+            width: 80px;
+        }
     </style>
 </head>
 <body>
@@ -239,8 +274,34 @@
             <div class="filter-group">
                 <div class="filter-row">
                     <label>Дата создания:</label>
-                    <input type="date" name="date_from" value="{{ filters.date_from }}">
-                    <input type="date" name="date_to" value="{{ filters.date_to }}">
+                    <div class="datetime-group">
+                        <input type="date" name="date_from" value="{{ filters.date_from }}">
+                        <input type="time" name="time_from" value="{{ filters.time_from }}" step="60">
+                        <span class="datetime-separator">—</span>
+                        <input type="date" name="date_to" value="{{ filters.date_to }}">
+                        <input type="time" name="time_to" value="{{ filters.time_to }}" step="60">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Фильтр по лайкам:</label>
+                    <div class="likes-filter">
+                        <input type="number" name="min_likes" placeholder="Мин" value="{{ filters.min_likes }}" min="0">
+                        <span>-</span>
+                        <input type="number" name="max_likes" placeholder="Макс" value="{{ filters.max_likes }}" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Автор поста:</label>
+                    <div class="user-search">
+                        <input type="text" name="author_name" placeholder="Имя автора" value="{{ filters.author_name|default('') }}">
+                        <input type="text" name="author_surname" placeholder="Фамилия автора" value="{{ filters.author_surname|default('') }}">
+                    </div>
                 </div>
             </div>
 
@@ -290,6 +351,12 @@
                     <input type="hidden" name="max_colors" value="{{ filters.max_colors }}">
                     <input type="hidden" name="date_from" value="{{ filters.date_from }}">
                     <input type="hidden" name="date_to" value="{{ filters.date_to }}">
+                    <input type="hidden" name="time_from" value="{{ filters.time_from }}">
+                    <input type="hidden" name="time_to" value="{{ filters.time_to }}">
+                    <input type="hidden" name="min_likes" value="{{ filters.min_likes }}">
+                    <input type="hidden" name="max_likes" value="{{ filters.max_likes }}">
+                    <input type="hidden" name="author_name" value="{{ filters.author_name }}">
+                    <input type="hidden" name="author_surname" value="{{ filters.author_surname }}">
                     <input type="hidden" name="sort_by" value="{{ filters.sort_by }}">
                     <input type="hidden" name="sort_order" value="{{ filters.sort_order }}">
 
@@ -359,6 +426,12 @@
                     <input type="hidden" name="max_colors" value="{{ filters.max_colors }}">
                     <input type="hidden" name="date_from" value="{{ filters.date_from }}">
                     <input type="hidden" name="date_to" value="{{ filters.date_to }}">
+                    <input type="hidden" name="time_from" value="{{ filters.time_from }}">
+                    <input type="hidden" name="time_to" value="{{ filters.time_to }}">
+                    <input type="hidden" name="min_likes" value="{{ filters.min_likes }}">
+                    <input type="hidden" name="max_likes" value="{{ filters.max_likes }}">
+                    <input type="hidden" name="author_name" value="{{ filters.author_name }}">
+                    <input type="hidden" name="author_surname" value="{{ filters.author_surname }}">
                     <input type="hidden" name="sort_by" value="{{ filters.sort_by }}">
                     <input type="hidden" name="sort_order" value="{{ filters.sort_order }}">
 
@@ -393,7 +466,7 @@
         document.getElementById('filterForm').addEventListener('submit', function(e) {
             // Очищаем параметры с None
             document.querySelectorAll('input, select').forEach(el => {
-                if (el.value === 'None') {
+                if (el.value === 'None' || el.value === '') {
                     el.disabled = true;
                 }
             });
@@ -405,6 +478,40 @@
             colorIdsInput.name = 'color_ids';
             colorIdsInput.value = colorCheckboxes.map(cb => cb.value).join(',');
             this.appendChild(colorIdsInput);
+
+            // Удаляем время, если не указана дата
+            if (!this.elements['date_from'].value && this.elements['time_from'].value) {
+                this.elements['time_from'].disabled = true;
+            }
+            if (!this.elements['date_to'].value && this.elements['time_to'].value) {
+                this.elements['time_to'].disabled = true;
+            }
+            
+            // Отключаем пустые поля фильтрации автора
+            if (!this.elements['author_name'].value) {
+                this.elements['author_name'].disabled = true;
+            }
+            if (!this.elements['author_surname'].value) {
+                this.elements['author_surname'].disabled = true;
+            }
+            
+            // Отключаем пустые поля фильтрации лайков
+            if (!this.elements['min_likes'].value) {
+                this.elements['min_likes'].disabled = true;
+            }
+            if (!this.elements['max_likes'].value) {
+                this.elements['max_likes'].disabled = true;
+            }
+        });
+
+        // Автоматическая установка времени при выборе даты
+        document.querySelectorAll('input[type="date"]').forEach(dateInput => {
+            dateInput.addEventListener('change', function() {
+                const timeInput = this.nextElementSibling;
+                if (timeInput && timeInput.tagName === 'INPUT' && timeInput.type === 'time' && !timeInput.value) {
+                    timeInput.value = '00:00';
+                }
+            });
         });
     </script>
 </body>
