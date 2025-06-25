@@ -572,25 +572,42 @@ async def search_users(
         surname: str = Query(None),
         status: str = Query(None),
         date_from: str = Query(None),
+        time_from: str = Query(None),
         date_to: str = Query(None),
+        time_to: str = Query(None),
+        min_posts: str = Query(None),
+        max_posts: str = Query(None),
+        post_title: str = Query(None),
         sort_by: str = Query("registration_at"),
         sort_order: str = Query("desc")
 ):
-    # Обработка дат
+    
+    min_posts = int(min_posts) if min_posts and min_posts.isdigit() else None
+    max_posts = int(max_posts) if max_posts and max_posts.isdigit() else None
     date_from_dt = None
     date_to_dt = None
     date_format = r'^\d{4}-\d{2}-\d{2}$'
+    time_format = r'^\d{2}:\d{2}$'
 
     if date_from:
         if not re.match(date_format, date_from):
             raise HTTPException(status_code=400, detail="Неверный формат даты (используйте YYYY-MM-DD)")
-        date_from_dt = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        
+        time_part = "00:00"
+        if time_from and re.match(time_format, time_from):
+            time_part = time_from
+        
+        date_from_dt = datetime.strptime(f"{date_from} {time_part}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
 
     if date_to:
         if not re.match(date_format, date_to):
             raise HTTPException(status_code=400, detail="Неверный формат даты (используйте YYYY-MM-DD)")
-        date_to_dt = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        date_to_dt = date_to_dt.replace(hour=23, minute=59, second=59)
+        
+        time_part = "23:59"
+        if time_to and re.match(time_format, time_to):
+            time_part = time_to
+        
+        date_to_dt = datetime.strptime(f"{date_to} {time_part}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
 
     # Создаем базовый запрос
     query = {}
@@ -608,7 +625,6 @@ async def search_users(
     if status:
         query["status"] = status
 
-    # Фильтр по дате
     if date_from_dt or date_to_dt:
         query["registration_at"] = {}
         if date_from_dt:
@@ -616,50 +632,54 @@ async def search_users(
         if date_to_dt:
             query["registration_at"]["$lte"] = date_to_dt
 
+    post_count_query = {}
+    if min_posts is not None:
+        post_count_query["$gte"] = min_posts
+    if max_posts is not None:
+        post_count_query["$lte"] = max_posts
+
+    post_title_query = {}
+    if post_title:
+        post_title_query = {"posts.scheme_name": {"$regex": f".*{post_title}.*", "$options": "i"}}
+
     # Определяем сортировку
-    sort_field = sort_by if sort_by in ["registration_at", "username", "name", "surname",
-                                        "post_count"] else "registration_at"
+    sort_field = sort_by if sort_by in ["registration_at", "username", "name", "surname", 
+                                      "post_count"] else "registration_at"
     sort_direction = -1 if sort_order == "desc" else 1
 
-    # Для сортировки по количеству постов используем агрегацию
-    if sort_by == "post_count":
-        pipeline = [
-            {"$match": query},
-            {"$lookup": {
-                "from": "posts",
-                "localField": "_id",
-                "foreignField": "author_id",
-                "as": "user_posts"
-            }},
-            {"$addFields": {
-                "post_count": {"$size": "$user_posts"}
-            }},
-            {"$sort": {"post_count": sort_direction}}
-        ]
+    # Собираем агрегационный пайплайн
+    pipeline = [
+        {"$match": query},
+        {"$lookup": {
+            "from": "posts",
+            "localField": "_id",
+            "foreignField": "author_id",
+            "as": "posts"
+        }},
+        {"$addFields": {
+            "post_count": {"$size": "$posts"}
+        }}
+    ]
 
-        users = []
-        async for user in db.users.aggregate(pipeline):
-            # Форматируем дату для отображения
-            if "registration_at" in user and isinstance(user["registration_at"], datetime):
-                user["formatted_date"] = user["registration_at"].strftime('%Y-%m-%d %H:%M')
-            else:
-                user["formatted_date"] = "Неизвестно"
-            users.append(user)
-    else:
-        # Обычная сортировка для других полей
-        users = []
-        async for user in db.users.find(query).sort(sort_field, sort_direction):
-            # Добавляем количество постов для каждого пользователя
-            post_count = await db.posts.count_documents({"author_id": user["_id"]})
-            user["post_count"] = post_count
+    if post_count_query:
+        pipeline.append({"$match": {"post_count": post_count_query}})
 
-            # Форматируем дату для отображения
-            if "registration_at" in user and isinstance(user["registration_at"], datetime):
-                user["formatted_date"] = user["registration_at"].strftime('%Y-%m-%d %H:%M')
-            else:
-                user["formatted_date"] = "Неизвестно"
+    if post_title_query:
+        pipeline.append({"$match": post_title_query})
 
-            users.append(user)
+    # Добавляем сортировку
+    pipeline.append({"$sort": {sort_field: sort_direction}})
+
+    # Выполняем запрос
+    users = []
+    async for user in db.users.aggregate(pipeline):
+        # Форматируем дату для отображения
+        if "registration_at" in user and isinstance(user["registration_at"], datetime):
+            user["formatted_date"] = user["registration_at"].strftime('%Y-%m-%d %H:%M')
+        else:
+            user["formatted_date"] = "Неизвестно"
+        
+        users.append(user)
 
     return templates.TemplateResponse("users.html", {
         "request": request,
@@ -671,7 +691,12 @@ async def search_users(
             "surname": surname,
             "status": status,
             "date_from": date_from,
+            "time_from": time_from,
             "date_to": date_to,
+            "time_to": time_to,
+            "min_posts": min_posts,
+            "max_posts": max_posts,
+            "post_title": post_title,
             "sort_by": sort_by,
             "sort_order": sort_order
         },
