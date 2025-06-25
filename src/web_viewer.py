@@ -130,6 +130,12 @@ async def view_all_posts(
         max_colors: str = Query(None),
         date_from: str = Query(None),
         date_to: str = Query(None),
+        time_from: str = Query(None),
+        time_to: str = Query(None),
+        min_likes: str = Query(None),
+        max_likes: str = Query(None),
+        author_name: str = Query(None),
+        author_surname: str = Query(None), 
         sort_by: str = Query("created_at"),
         sort_order: str = Query("desc"),
         page: str = Query("1"),
@@ -161,28 +167,56 @@ async def view_all_posts(
     max_length_int = safe_int_convert(max_length)
     min_colors_int = safe_int_convert(min_colors)
     max_colors_int = safe_int_convert(max_colors)
+    min_likes_int = safe_int_convert(min_likes)
+    max_likes_int = safe_int_convert(max_likes)
 
-    # Обработка дат
+    # Обработка фильтра по автору
+    author_query = {}
+    if author_name and author_name != "None":
+        author_query["name"] = {"$regex": f".*{author_name}.*", "$options": "i"}
+    if author_surname and author_surname != "None":
+        author_query["surname"] = {"$regex": f".*{author_surname}.*", "$options": "i"}
+
+    author_ids = []
+    if author_query:
+        authors = db.users.find(author_query)
+        async for author in authors:
+            author_ids.append(author["_id"])
+        
+        if not author_ids:
+            processed_posts = []
+
+    # Обработка дат и времени
     date_from_dt = None
     date_to_dt = None
-    date_format = r'^\d{4}-\d{2}-\d{2}$'
-
+    
     if date_from and date_from != "None":
-        if not re.match(date_format, date_from):
+        try:
+            if time_from and time_from != "None":
+                datetime_str = f"{date_from} {time_from}"
+                date_from_dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+            else:
+                date_from_dt = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail="Неверный формат даты (используйте YYYY-MM-DD)"
+                detail="Неверный формат даты/времени (используйте YYYY-MM-DD и HH:MM)"
             )
-        date_from_dt = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     if date_to and date_to != "None":
-        if not re.match(date_format, date_to):
+        try:
+            if time_to and time_to != "None":
+                datetime_str = f"{date_to} {time_to}"
+                date_to_dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+            else:
+                date_to_dt = datetime.strptime(date_to, "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59, tzinfo=timezone.utc
+                )
+        except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail="Неверный формат даты (используйте YYYY-MM-DD)"
+                detail="Неверный формат даты/времени (используйте YYYY-MM-DD и HH:MM)"
             )
-        date_to_dt = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        date_to_dt = date_to_dt.replace(hour=23, minute=59, second=59)
 
     # Обработка цветов
     selected_color_ids = []
@@ -251,6 +285,13 @@ async def view_all_posts(
             continue
         if selected_color_ids and not all(cid in unique_colors for cid in selected_color_ids):
             continue
+        likes_count = len(post.get("likes", []))
+        if min_likes_int is not None and likes_count < min_likes_int:
+            continue
+        if max_likes_int is not None and likes_count > max_likes_int:
+            continue
+        if author_ids and post["author_id"] not in author_ids:
+            continue
 
         post["color_count"] = len(unique_colors)
         post["length"] = total_length
@@ -285,8 +326,14 @@ async def view_all_posts(
                 "max_length": max_length,
                 "min_colors": min_colors,
                 "max_colors": max_colors,
+                "time_from": time_from,
+                "time_to": time_to,
                 "date_from": date_from,
                 "date_to": date_to,
+                "min_likes": min_likes,
+                "max_likes": max_likes,
+                "author_name": author_name,
+                "author_surname": author_surname,
                 "sort_by": sort_by,
                 "sort_order": sort_order
             },
@@ -346,11 +393,25 @@ async def view_post(request: Request, post_id: str):
         if not post:
             return HTMLResponse("Post not found", status_code=404)
 
-        # Получаем информацию об авторе
+        # Получаем информацию об авторе поста
         post["author"] = await get_user(post["author_id"])
 
         # Форматируем дату
         post["formatted_date"] = post.get("created_at", datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M')
+
+        # Получаем и обрабатываем комментарии
+        comments = []
+        for comment_id in post.get("comments", []):
+            comment = await db.comments.find_one({"_id": comment_id})
+            if comment:
+                # Получаем данные автора комментария
+                comment["author"] = await get_user(comment["author_id"])
+                # Форматируем дату комментария
+                comment["formatted_date"] = comment.get("created_at", datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M')
+                comments.append(comment)
+        
+        # Сортируем комментарии по дате (новые сначала)
+        post["comments"] = sorted(comments, key=lambda x: x["created_at"], reverse=True)
 
         # Обработка легенды цветов
         color_legend = []
@@ -396,6 +457,14 @@ async def view_post(request: Request, post_id: str):
             "description": name,
             "symbol": info["symbol"]
         } for name, info in STITCH_TYPES.items()]
+
+        # Проверяем, лайкал/дизлайкал ли текущий пользователь пост
+        if current_user:
+            post["user_liked"] = ObjectId(current_user["_id"]) in post.get("likes", [])
+            post["user_disliked"] = ObjectId(current_user["_id"]) in post.get("dislikes", [])
+        else:
+            post["user_liked"] = False
+            post["user_disliked"] = False
 
         return templates.TemplateResponse("post_detail.html", {
             "request": request,
@@ -919,6 +988,8 @@ async def delete_entire_database():
 async def view_actions(
         request: Request,
         search: str = Query(None),
+        min_length: str = Query(None),
+        max_length: str = Query(None),
         sort_by: str = Query("length"),  # Сортировка по длине по умолчанию
         sort_order: str = Query("desc"),  # По убыванию по умолчанию
         page: str = Query("1"),
@@ -933,10 +1004,27 @@ async def view_actions(
     except ValueError:
         raise HTTPException(status_code=400, detail="Неверные параметры")
 
-    # Поиск по описанию
+    # Поиск по описанию и длине
     query = {}
     if search and search != "None":
         query["description"] = {"$regex": f".*{search}.*", "$options": "i"}
+    
+    # Фильтрация по длине
+    length_query = {}
+    if min_length and min_length != "None":
+        try:
+            length_query["$gte"] = float(min_length)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Неверное значение минимальной длины")
+    
+    if max_length and max_length != "None":
+        try:
+            length_query["$lte"] = float(max_length)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Неверное значение максимальной длины")
+    
+    if length_query:
+        query["length"] = length_query
 
     # Сортировка по длине
     sort_field = "length"
@@ -960,6 +1048,8 @@ async def view_actions(
             "request": request,
             "actions": actions,
             "search": search if search != "None" else "",
+            "min_length": min_length if min_length != "None" else "",
+            "max_length": max_length if max_length != "None" else "",
             "sort_order": sort_order,
             "pagination": {
                 "page": page_int,
