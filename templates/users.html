@@ -3,20 +3,114 @@
 <head>
     <title>Поиск пользователей</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .search-form { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .form-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
-        .form-group { flex: 1; min-width: 200px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; }
-        button { padding: 10px 15px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #f2f2f2; cursor: pointer; }
-        th:hover { background-color: #e6e6e6; }
-        .sort-arrow { margin-left: 5px; }
-        .user-link { color: #0066cc; text-decoration: none; }
-        .user-link:hover { text-decoration: underline; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            line-height: 1.6;
+        }
+        .user-panel {
+            float: right;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .user-panel a {
+            color: #007bff;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+        .user-panel a:hover {
+            text-decoration: underline;
+        }
+        .user-greeting {
+            font-weight: bold;
+            color: #28a745;
+        }
+        .search-form { 
+            background: #f5f5f5; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+        }
+        .form-row { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 15px; 
+            margin-bottom: 15px; 
+        }
+        .form-group { 
+            flex: 1; 
+            min-width: 200px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+        }
+        input, select { 
+            width: 100%; 
+            padding: 8px; 
+            border-radius: 4px; 
+            border: 1px solid #ddd; 
+            box-sizing: border-box;
+        }
+        .datetime-group {
+            display: flex;
+            gap: 5px;
+        }
+        .datetime-group input[type="time"] {
+            width: auto;
+        }
+        button { 
+            padding: 10px 15px; 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            transition: background 0.3s;
+        }
+        button:hover { 
+            background: #45a049; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+        th, td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #ddd; 
+        }
+        th { 
+            background-color: #f2f2f2; 
+            cursor: pointer; 
+        }
+        th:hover { 
+            background-color: #e6e6e6; 
+        }
+        .sort-arrow { 
+            margin-left: 5px; 
+        }
+        .user-link { 
+            color: #0066cc; 
+            text-decoration: none; 
+        }
+        .user-link:hover { 
+            text-decoration: underline; 
+        }
+        .range-group {
+            display: flex;
+            gap: 10px;
+        }
+        .range-group input {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -24,11 +118,11 @@
         {% if current_user %}
             <span class="user-greeting">👋 Привет, {{ current_user.name }} {{ current_user.surname }}!</span>
             <a href="/logout">🚪 Выйти</a>
-            <a href="/"> Главная</a>
+            <a href="/">Главная</a>
         {% else %}
             <a href="/login">🔑 Войти</a>
             <a href="/register">📝 Регистрация</a>
-            <a href="/"> Главная</a>
+            <a href="/">Главная</a>
         {% endif %}
     </div>
     <h1>Поиск пользователей</h1>
@@ -63,22 +157,55 @@
             </div>
 
             <div class="form-group">
-                <label for="date_from">Дата регистрации от:</label>
-                <input type="date" id="date_from" name="date_from" value="{{ filters.date_from or '' }}">
+                <label for="post_title">Название поста:</label>
+                <input type="text" id="post_title" name="post_title" value="{{ filters.post_title or '' }}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Дата регистрации:</label>
+                <div class="range-group">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.9em; font-weight: normal;">От:</label>
+                        <div class="datetime-group">
+                            <input type="date" name="date_from" value="{{ filters.date_from or '' }}">
+                            <input type="time" name="time_from" value="{{ filters.time_from or '00:00' }}">
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.9em; font-weight: normal;">До:</label>
+                        <div class="datetime-group">
+                            <input type="date" name="date_to" value="{{ filters.date_to or '' }}">
+                            <input type="time" name="time_to" value="{{ filters.time_to or '23:59' }}">
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
-                <label for="date_to">Дата регистрации до:</label>
-                <input type="date" id="date_to" name="date_to" value="{{ filters.date_to or '' }}">
+                <label>Количество постов:</label>
+                <div class="range-group">
+                    <input type="number" name="min_posts" placeholder="От" value="{{ filters.min_posts or '' }}" min="0">
+                    <input type="number" name="max_posts" placeholder="До" value="{{ filters.max_posts or '' }}" min="0">
+                </div>
             </div>
         </div>
 
         <input type="hidden" name="sort_by" value="{{ filters.sort_by or 'created_at' }}">
         <input type="hidden" name="sort_order" value="{{ filters.sort_order or 'desc' }}">
 
-        <button type="submit">Поиск</button>
+        <div style="display: flex; gap: 10px;">
+            <button type="submit">Поиск</button>
+            <a href="/users" style="padding: 10px 15px; background: #f44336; color: white; text-decoration: none; border-radius: 4px;">Сбросить</a>
+        </div>
     </form>
 
+    {% if users|length == 0 %}
+    <div style="text-align: center; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+        По вашему запросу ничего не найдено. Попробуйте изменить параметры поиска.
+    </div>
+    {% else %}
     <table>
         <thead>
             <tr>
@@ -128,6 +255,7 @@
             {% endfor %}
         </tbody>
     </table>
+    {% endif %}
 
     <script>
         function sortTable(field) {
@@ -135,16 +263,29 @@
             const params = new URLSearchParams(url.search);
 
             if (params.get('sort_by') === field) {
-                // Если уже сортируем по этому полю, меняем направление
                 params.set('sort_order', params.get('sort_order') === 'asc' ? 'desc' : 'asc');
             } else {
-                // Если новое поле сортировки, устанавливаем по возрастанию
                 params.set('sort_by', field);
                 params.set('sort_order', 'asc');
             }
 
             window.location.href = url.pathname + '?' + params.toString();
         }
+
+        document.querySelectorAll('input[type="date"]').forEach(dateInput => {
+            dateInput.addEventListener('change', function() {
+                const timeInput = this.nextElementSibling;
+                if (timeInput && timeInput.tagName === 'INPUT' && timeInput.type === 'time') {
+                    if (!timeInput.value) {
+                        if (this.name === 'date_from') {
+                            timeInput.value = '00:00';
+                        } else if (this.name === 'date_to') {
+                            timeInput.value = '23:59';
+                        }
+                    }
+                }
+            });
+        });
     </script>
 </body>
 </html>
