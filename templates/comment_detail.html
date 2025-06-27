@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Комментарий</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .user-panel {
+            float: right;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .user-panel a {
+            color: #007bff;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+        .user-panel a:hover {
+            text-decoration: underline;
+        }
+        .user-greeting {
+            font-weight: bold;
+            color: #28a745;
+        }
+        a.reset {
+            color: #f44336;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        .comment {
+            border: 1px solid black;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .comment-author {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .comment-date {
+            color: #666;
+            font-size: 0.8em;
+        }
+        .comment-likes-count{
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .comment-text {
+            margin-top: 5px;
+        }
+        .comment-form textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-panel">
+        {% if current_user %}
+            <span class="user-greeting">👋 Привет, {{ current_user.name }} {{ current_user.surname }}!</span>
+            <a href="/logout">🚪 Выйти</a>
+            <a href="/">🏠 Главная</a>
+            <a href="/users">👤 Поиск пользователей</a>
+            <a href="/create-comment">Создать пост</a>
+            <a href="/database-tools">Импорт/Экспорт</a>
+        {% else %}
+            <a href="/login">🔑 Войти</a>
+            <a href="/register">📝 Регистрация</a>
+            <a href="/">🏠 Главная</a>
+            <a href="/users">👤 Поиск пользователей</a>
+            <a href="/database-tools">Импорт/Экспорт</a>
+        {% endif %}
+    </div>
+
+    <h1>Комментарий</h1>
+    <div class="comment">
+        <div class="comment-author">{{ comment.author.name }} {{ comment.author.surname }}</div>
+        <div class="comment-date">{{ comment.formatted_date }}</div>
+        <div class="comment-text">{{ comment.text }}</div>
+        <div class="comment-likes_count">{{ comment.likes_count }} ❤️</div>
+    </div>
+
+    <a href="/comments" class="back-link">← Назад к списку комментариев</a>
+</body>
+</html>

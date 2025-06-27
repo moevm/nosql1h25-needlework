@@ -7,16 +7,6 @@ from pprint import pprint
 
 async def print_all_data(db):
     """Вывод всей информации из базы данных"""
-    print("\n=== ЦВЕТА ===")
-    colors = await db.colors.find().to_list(length=None)
-    for color in colors:
-        print(f"ID: {color['_id']} - {color['name']}")
-
-    print("\n=== ДЕЙСТВИЯ ===")
-    actions = await db.actions.find().to_list(length=None)
-    for action in actions:
-        print(f"ID: {action['_id']} - {action['description']} (длина: {action['length']})")
-
     print("\n=== ПОЛЬЗОВАТЕЛИ ===")
     users = await db.users.find().to_list(length=None)
     for user in users:

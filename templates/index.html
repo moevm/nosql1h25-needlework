@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Все посты</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .user-panel {
+            float: right;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .user-panel a {
+            color: #007bff;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+        .user-panel a:hover {
+            text-decoration: underline;
+        }
+        .user-greeting {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .filters {
+            background: #f5f5f5;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            clear: both;
+        }
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-row > * {
+            margin-bottom: 5px;
+        }
+        label {
+            min-width: 150px;
+            font-weight: bold;
+        }
+        input, select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        input[type="number"] {
+            width: 120px;
+        }
+        input[type="date"] {
+            width: 150px;
+        }
+        input[type="time"] {
+            width: 100px;
+        }
+        button {
+            padding: 8px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        a.reset {
+            color: #f44336;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        .post {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: white;
+        }
+        .post-title {
+            font-size: 1.4em;
+            margin-bottom: 10px;
+        }
+        .post-title a {
+            color: #333;
+            text-decoration: none;
+        }
+        .post-title a:hover {
+            color: #0066cc;
+        }
+        .post-meta {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .post-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .post-image {
+            max-width: 100%;
+            height: auto;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .no-posts {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+        .pagination {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pagination-stats {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .pagination select {
+            padding: 6px 10px;
+        }
+        .datetime-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .datetime-separator {
+            margin: 0 5px;
+            color: #666;
+        }
+        .user-search {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-search input {
+            width: 200px;
+        }
+        .likes-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .likes-filter input {
+            width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-panel">
+        {% if current_user %}
+            <span class="user-greeting">👋 Привет, {{ current_user.name }} {{ current_user.surname }}!</span>
+            <a href="/logout">🚪 Выйти</a>
+            <a href="/users">👤 Поиск пользователей</a>
+            <a href="/create-post">Создать пост</a>
+            <a href="/comments">Все комментарии</a>
+            <a href="/database-tools">Импорт/Экспорт</a>
+        {% else %}
+            <a href="/login">🔑 Войти</a>
+            <a href="/register">📝 Регистрация</a>
+            <a href="/users">👤 Поиск пользователей</a>
+            <a href="/comments">Все комментарии</a>
+            <a href="/database-tools">Импорт/Экспорт</a>
+        {% endif %}
+    </div>
+
+    <h1>Все схемы для рукоделия</h1>
+
+    <div class="filters">
+        <form method="get" id="filterForm">
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Дата создания:</label>
+                    <div class="datetime-group">
+                        <input type="date" name="date_from" value="{{ filters.date_from }}">
+                        <input type="time" name="time_from" value="{{ filters.time_from }}" step="60">
+                        <span class="datetime-separator">—</span>
+                        <input type="date" name="date_to" value="{{ filters.date_to }}">
+                        <input type="time" name="time_to" value="{{ filters.time_to }}" step="60">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Автор поста:</label>
+                    <div class="user-search">
+                        <input type="text" name="author_name" placeholder="Имя автора" value="{{ filters.author_name|default('') }}">
+                        <input type="text" name="author_surname" placeholder="Фамилия автора" value="{{ filters.author_surname|default('') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <div class="filter-row">
+                    <label>Сортировка:</label>
+                    <select name="sort_by">
+                        <option value="created_at" {% if filters.sort_by == 'created_at' %}selected{% endif %}>Дата</option>
+                    </select>
+                    <select name="sort_order">
+                        <option value="desc" {% if filters.sort_order == 'desc' %}selected{% endif %}>По убыванию</option>
+                        <option value="asc" {% if filters.sort_order == 'asc' %}selected{% endif %}>По возрастанию</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <button type="submit">Применить фильтры</button>
+                <a href="/" class="reset">Сбросить</a>
+            </div>
+        </form>
+    </div>
+
+    {% if posts|length == 0 %}
+    <div class="no-posts">
+        По вашему запросу ничего не найдено. Попробуйте изменить параметры фильтрации.
+    </div>
+    {% else %}
+        <!-- Блок пагинации -->
+        <div class="pagination">
+            <div class="pagination-stats">
+                Показано {{ (pagination.page-1)*pagination.per_page+1 }} -
+                {{ min(pagination.page*pagination.per_page, pagination.total_posts) }} из {{ pagination.total_posts }}
+            </div>
+
+            <div class="pagination-controls">
+                <form method="get" id="paginationForm" style="display: flex; gap: 10px; align-items: center;">
+                    <!-- Скрытые поля для сохранения фильтров -->
+                    <input type="hidden" name="date_from" value="{{ filters.date_from }}">
+                    <input type="hidden" name="date_to" value="{{ filters.date_to }}">
+                    <input type="hidden" name="time_from" value="{{ filters.time_from }}">
+                    <input type="hidden" name="time_to" value="{{ filters.time_to }}">
+                    <input type="hidden" name="author_name" value="{{ filters.author_name }}">
+                    <input type="hidden" name="author_surname" value="{{ filters.author_surname }}">
+                    <input type="hidden" name="sort_by" value="{{ filters.sort_by }}">
+                    <input type="hidden" name="sort_order" value="{{ filters.sort_order }}">
+
+                    <div>
+                        <label>Страница:</label>
+                        <select name="page" onchange="this.form.submit()">
+                            {% for p in range(1, pagination.total_pages + 1) %}
+                            <option value="{{ p }}" {% if p == pagination.page %}selected{% endif %}>
+                                {{ p }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span>/ {{ pagination.total_pages }}</span>
+                    </div>
+
+                    <div>
+                        <label>На странице:</label>
+                        <select name="per_page" onchange="this.form.submit()">
+                            <option value="5" {% if pagination.per_page == 5 %}selected{% endif %}>5</option>
+                            <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10</option>
+                            <option value="15" {% if pagination.per_page == 15 %}selected{% endif %}>15</option>
+                            <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20</option>
+                            <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% for post in posts %}
+        <div class="post">
+            <div class="post-title">
+                <a href="/post/{{ post._id }}">{{ post.scheme_name }}</a>
+            </div>
+            <div class="post-meta">
+                Автор: {{ post.author.name }} {{ post.author.surname }} |
+                Дата: {{ post.created_at.strftime('%d.%m.%Y %H:%M') }}
+            </div>
+            <p>{{ post.description }}</p>
+            {% if post.preview_image_id %}
+            <img src="/image/{{ post.preview_image_id }}" alt="{{ post.scheme_name }}" class="post-image" style="max-width: 300px;">
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <!-- Повтор пагинации внизу -->
+        <div class="pagination">
+            <div class="pagination-stats">
+                Показано {{ (pagination.page-1)*pagination.per_page+1 }} -
+                {{ min(pagination.page*pagination.per_page, pagination.total_posts) }} из {{ pagination.total_posts }}
+            </div>
+
+            <div class="pagination-controls">
+                <form method="get" style="display: flex; gap: 10px; align-items: center;">
+                    <!-- Скрытые поля для сохранения фильтров -->
+                    <input type="hidden" name="date_from" value="{{ filters.date_from }}">
+                    <input type="hidden" name="date_to" value="{{ filters.date_to }}">
+                    <input type="hidden" name="time_from" value="{{ filters.time_from }}">
+                    <input type="hidden" name="time_to" value="{{ filters.time_to }}">
+                    <input type="hidden" name="author_name" value="{{ filters.author_name }}">
+                    <input type="hidden" name="author_surname" value="{{ filters.author_surname }}">
+                    <input type="hidden" name="sort_by" value="{{ filters.sort_by }}">
+                    <input type="hidden" name="sort_order" value="{{ filters.sort_order }}">
+
+                    <div>
+                        <label>Страница:</label>
+                        <select name="page" onchange="this.form.submit()">
+                            {% for p in range(1, pagination.total_pages + 1) %}
+                            <option value="{{ p }}" {% if p == pagination.page %}selected{% endif %}>
+                                {{ p }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span>/ {{ pagination.total_pages }}</span>
+                    </div>
+
+                    <div>
+                        <label>На странице:</label>
+                        <select name="per_page" onchange="this.form.submit()">
+                            <option value="5" {% if pagination.per_page == 5 %}selected{% endif %}>5</option>
+                            <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10</option>
+                            <option value="15" {% if pagination.per_page == 15 %}selected{% endif %}>15</option>
+                            <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20</option>
+                            <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    <script>
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            // Очищаем параметры с None
+            document.querySelectorAll('input, select').forEach(el => {
+                if (el.value === 'None' || el.value === '') {
+                    el.disabled = true;
+                }
+            });
+
+            // Удаляем время, если не указана дата
+            if (!this.elements['date_from'].value && this.elements['time_from'].value) {
+                this.elements['time_from'].disabled = true;
+            }
+            if (!this.elements['date_to'].value && this.elements['time_to'].value) {
+                this.elements['time_to'].disabled = true;
+            }
+            
+            // Отключаем пустые поля фильтрации автора
+            if (!this.elements['author_name'].value) {
+                this.elements['author_name'].disabled = true;
+            }
+            if (!this.elements['author_surname'].value) {
+                this.elements['author_surname'].disabled = true;
+            }
+        });
+
+        // Автоматическая установка времени при выборе даты
+        document.querySelectorAll('input[type="date"]').forEach(dateInput => {
+            dateInput.addEventListener('change', function() {
+                const timeInput = this.nextElementSibling;
+                if (timeInput && timeInput.tagName === 'INPUT' && timeInput.type === 'time' && !timeInput.value) {
+                    timeInput.value = '00:00';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -2,7 +2,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 
 async def clear_database():
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    mongodb_url = os.getenv("MONGODB_URL", "mongodb://db:27017")
+    client = AsyncIOMotorClient(mongodb_url)
     db = client.embroidery_db
 
     # Удаление всех коллекций
